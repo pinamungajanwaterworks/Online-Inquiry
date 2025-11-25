@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Water Bill Inquiry v7 (Embedded DB)</title>
+<style>
+body { 
+    font-family: Arial, sans-serif; 
+    background-color: #f4f9ff; 
+    margin: 0; 
+    padding: 20px; 
+}
+.container { 
+    max-width: 900px; 
+    margin: auto; 
+    background: #fff; 
+    padding: 20px; 
+    border-radius: 12px; 
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1); 
+}
+h1 { 
+    text-align: center; 
+    color: #0078d7; 
+    margin-bottom: 10px;
+}
+h2 {
+    color: #005fa3;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 8px;
+    margin-top: 25px;
+}
+input[type="number"] { 
+    padding: 10px; 
+    width: 200px; 
+    border-radius: 6px; 
+    border: 1px solid #ccc; 
+    margin-right: 10px;
+}
+input[type="file"] {
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    background: #f9f9f9;
+    width: 100%;
+    max-width: 400px;
+    margin-bottom: 10px;
+}
+button { 
+    padding: 10px 16px; 
+    background-color: #0078d7; 
+    color: white; 
+    border: none; 
+    border-radius: 6px; 
+    cursor: pointer; 
+    margin: 5px;
+    transition: background-color 0.3s;
+}
+button:hover { 
+    background-color: #005fa3; 
+}
+button:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+}
+.info, .records, .upload-section { 
+    margin-top: 20px; 
+    border: 1px solid #ddd; 
+    border-radius: 8px; 
+    padding: 15px; 
+    background: #fafafa; 
+}
+table { 
+    width: 100%; 
+    border-collapse: collapse; 
+    margin-top: 10px; 
+}
+th, td { 
+    padding: 10px; 
+    border-bottom: 1px solid #ddd; 
+    text-align: left; 
+}
+th { 
+    background-color: #0078d7; 
+    color: white; 
+}
+#status { 
+    margin-top: 10px; 
+    padding: 10px;
+    border-radius: 6px;
+    text-align: center;
+}
+.status-loading {
+    background-color: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeaa7;
+}
+.status-success {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+.status-error {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+.upload-status {
+    margin-top: 10px;
+    padding: 10px;
+    border-radius: 4px;
+}
+.upload-success {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+.upload-error {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+.upload-warning {
+    background-color: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeaa7;
+}
+.hidden {
+    display: none;
+}
+.file-info {
+    margin: 10px 0;
+    padding: 8px;
+    background-color: #e9f7fe;
+    border-radius: 4px;
+    border-left: 4px solid #0078d7;
+}
+.instructions {
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 6px;
+    margin-bottom: 20px;
+    border-left: 4px solid #0078d7;
+}
+.instructions h3 {
+    margin-top: 0;
+    color: #005fa3;
+}
+.footer {
+    text-align: center;
+    margin-top: 30px;
+    color: #6c757d;
+    font-size: 0.9em;
+}
+.progress-bar {
+    width: 100%;
+    height: 20px;
+    background-color: #f0f0f0;
+    border-radius: 10px;
+    margin: 10px 0;
+    overflow: hidden;
+}
+.progress-fill {
+    height: 100%;
+    background-color: #0078d7;
+    width: 0%;
+    transition: width 0.3s ease;
+}
+.size-warning {
+    color: #d63384;
+    font-weight: bold;
+    margin: 10px 0;
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+<h1>💧 Water Bill Inquiry v7 (Embedded DB)</h1>
+
+<div id="status" class="status-loading">Loading SQL.js library…</div>
+
+<hr>
+
+<div class="upload-section">
+    <h2>Database Management</h2>
+    
+    <div class="instructions">
+        <h3>How to Update Database</h3>
+        <p>Upload a new SQLite database file (.db, .sqlite, or .sqlite3) to update the system.</p>
+        <p><strong>Large File Support:</strong> Files up to 50MB are supported using browser storage.</p>
+    </div>
+    
+    <input type="file" id="dbUpload" accept=".db,.sqlite,.sqlite3">
+    <div id="fileInfo" class="file-info hidden"></div>
+    <div id="progressContainer" class="hidden">
+        <div class="progress-bar">
+            <div id="progressFill" class="progress-fill"></div>
+        </div>
+        <div id="progressText">Processing...</div>
+    </div>
+    
+    <button id="uploadBtn" disabled>Upload Database</button>
+    <button id="clearBtn">Clear Current Database</button>
+    
+    <div id="uploadStatus" class="upload-status hidden"></div>
+</div>
+
+<hr>
+
+<h2>Account Inquiry</h2>
+<div style="margin-bottom: 15px;">
+    <label>Enter Account No:</label>
+    <input type="number" id="acctInput" placeholder="e.g. 1001">
+    <button id="searchBtn">Search</button>
+</div>
+
+<div class="info" id="acctInfo"></div>
+<div class="records" id="billRecords"></div>
+
+<div class="footer">
+    <p>Water Bill Inquiry System v7 | Large Database Support</p>
+</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/sql-wasm.js"></script>
+<script>
+// Global variables
+let SQL = null;
+let db = null;
+let currentDbName = "Empty Database";
+let currentDbSize = 0;
+
+// Default empty database
+const defaultDbBase64 = "U1FMaXRlIGZvcm1hdCAzAAQAAAQEAQIAQk0BAAAAgAAAACAAAAAQAAAAAgAAAP7/AABibQBjb250ZW50c1NRTGl0ZV9tYXN0ZXIA";
+
+// IndexedDB setup for large file storage
+const DB_NAME = 'WaterBillDB';
+const DB_VERSION = 1;
+const STORE_NAME = 'databases';
+
+// Initialize SQL.js and load database
+async function initializeApplication() {
+    try {
+        updateStatus('Loading SQL.js library...', 'loading');
+        
+        // Initialize SQL.js
+        SQL = await initSqlJs({
+            locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/${file}`
+        });
+        
+        updateStatus('SQL.js loaded, initializing database...', 'loading');
+        
+        // Initialize IndexedDB and load database
+        await loadDatabase();
+        
+    } catch (error) {
+        console.error('Failed to initialize application:', error);
+        updateStatus('❌ Failed to initialize: ' + error.message, 'error');
+    }
+}
+
+// Initialize IndexedDB
+async function initIndexedDB() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
+        
+        request.onerror = () => reject(new Error(`IndexedDB error: ${request.error}`));
+        request.onsuccess = () => resolve(request.result);
+        
+        request.onupgradeneeded = (event) => {
+            const db = event.target.result;
+            if (!db.objectStoreNames.contains(STORE_NAME)) {
+                db.createObjectStore(STORE_NAME);
+            }
+        };
+    });
+}
+
+// Save database to IndexedDB
+async function saveDatabaseToIndexedDB(name, data) {
+    try {
+        const idb = await initIndexedDB();
+        return new Promise((resolve, reject) => {
+            const transaction = idb.transaction([STORE_NAME], 'readwrite');
+            const store = transaction.objectStore(STORE_NAME);
+            const request = store.put(data, name);
+            
+            request.onerror = () => reject(new Error(`Save failed: ${request.error}`));
+            request.onsuccess = () => resolve();
+        });
+    } catch (error) {
+        console.error('Error saving to IndexedDB:', error);
+        throw error;
+    }
+}
+
+// Load database from IndexedDB
+async function loadDatabaseFromIndexedDB(name) {
+    try {
+        const idb = await initIndexedDB();
+        return new Promise((resolve, reject) => {
+            const transaction = idb.transaction([STORE_NAME], 'readonly');
+            const store = transaction.objectStore(STORE_NAME);
+            const request = store.get(name);
+            
+            request.onerror = () => reject(new Error(`Load failed: ${request.error}`));
+            request.onsuccess = () => resolve(request.result);
+        });
+    } catch (error) {
+        console.error('Error loading from IndexedDB:', error);
+        return null;
+    }
+}
+
+// Load database (from IndexedDB or default)
+async function loadDatabase() {
+    try {
+        // Try to load from IndexedDB first
+        const storedDb = await loadDatabaseFromIndexedDB('currentDatabase');
+        
+        if (storedDb && storedDb.data) {
+            await loadDatabaseFromBase64(storedDb.data);
+            currentDbName = storedDb.name || "Loaded Database";
+            currentDbSize = storedDb.size || 0;
+            updateStatus(`✅ Database Loaded (${currentDbName}) | ${Math.round(currentDbSize/1024)} KB`, 'success');
+        } else {
+            // Load default empty database
+            await loadDatabaseFromBase64(defaultDbBase64);
+            currentDbName = "Empty Database";
+            currentDbSize = 0;
+            updateStatus('✅ Default database loaded', 'success');
+        }
+        
+    } catch (error) {
+        console.error('Error loading database:', error);
+        // Fallback to default database
+        await loadDatabaseFromBase64(defaultDbBase64);
+        updateStatus('✅ Default database loaded (storage unavailable)', 'success');
+    }
+}
+
+// Load database from Base64 string
+async function loadDatabaseFromBase64(base64Data) {
+    if (!SQL) {
+        throw new Error('SQL.js not initialized');
+    }
+    
+    try {
+        // Close existing database if open
+        if (db) {
+            db.close();
+        }
+        
+        // Decode Base64 to Uint8Array
+        const binaryString = atob(base64Data);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+        }
+        
+        // Create new database
+        db = new SQL.Database(bytes);
+        
+    } catch (error) {
+        console.error('Error loading database from Base64:', error);
+        throw new Error(`Failed to load database: ${error.message}`);
+    }
+}
+
+// Update status display
+function updateStatus(message, type = 'loading') {
+    const statusElement = document.getElementById('status');
+    statusElement.textContent = message;
+    statusElement.className = `status-${type}`;
+}
+
+// Show upload status
+function showUploadStatus(message, type) {
+    const statusDiv = document.getElementById('uploadStatus');
+    statusDiv.textContent = message;
+    statusDiv.className = `upload-status upload-${type}`;
+    statusDiv.classList.remove('hidden');
+    
+    // Auto-hide success/warning messages after 8 seconds
+    if (type === 'success' || type === 'warning') {
+        setTimeout(() => {
+            statusDiv.classList.add('hidden');
+        }, 8000);
+    }
+}
+
+// File upload handling
+document.getElementById('dbUpload').addEventListener('change', function(e) {
+    const uploadBtn = document.getElementById('uploadBtn');
+    const fileInfo = document.getElementById('fileInfo');
+    
+    if (this.files.length > 0) {
+        const file = this.files[0];
+        uploadBtn.disabled = false;
+        
+        const fileSizeKB = (file.size / 1024).toFixed(2);
+        const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+        
+        let fileInfoHTML = `
+            <strong>Selected file:</strong> ${file.name}<br>
+            <strong>Size:</strong> ${fileSizeKB} KB (${fileSizeMB} MB)<br>
+            <strong>Type:</strong> ${file.type || 'SQLite database'}
+        `;
+        
+        // Add warnings for large files
+        if (file.size > 5 * 1024 * 1024) {
+            fileInfoHTML += `<div class="size-warning">⚠️ Large file - processing may take a moment</div>`;
+        }
+        
+        if (file.size > 20 * 1024 * 1024) {
+            fileInfoHTML += `<div class="size-warning">⚠️ Very large file - consider using a smaller database</div>`;
+        }
+        
+        fileInfo.innerHTML = fileInfoHTML;
+        fileInfo.classList.remove('hidden');
+        
+    } else {
+        uploadBtn.disabled = true;
+        fileInfo.classList.add('hidden');
+    }
+});
+
+// Upload database
+document.getElementById('uploadBtn').addEventListener('click', uploadDatabase);
+document.getElementById('clearBtn').addEventListener('click', clearDatabase);
+
+async function uploadDatabase() {
+    const fileInput = document.getElementById('dbUpload');
+    const progressContainer = document.getElementById('progressContainer');
+    const progressFill = document.getElementById('progressFill');
+    const progressText = document.getElementById('progressText');
+    
+    if (fileInput.files.length === 0) {
+        showUploadStatus('Please select a database file first.', 'error');
+        return;
+    }
+    
+    const file = fileInput.files[0];
+    
+    // Show progress
+    progressContainer.classList.remove('hidden');
+    progressFill.style.width = '10%';
+    progressText.textContent = 'Reading file...';
+    
+    try {
+        // Read file as ArrayBuffer
+        const arrayBuffer = await readFileAsArrayBuffer(file);
+        
+        progressFill.style.width = '40%';
+        progressText.textContent = 'Converting to Base64...';
+        
+        // Convert to Base64
+        const base64Data = await convertToBase64(arrayBuffer);
+        
+        progressFill.style.width = '70%';
+        progressText.textContent = 'Loading database...';
+        
+        // Load the database
+        await loadDatabaseFromBase64(base64Data);
+        
+        progressFill.style.width = '85%';
+        progressText.textContent = 'Saving to storage...';
+        
+        // Try to save to IndexedDB
+        try {
+            await saveDatabaseToIndexedDB('currentDatabase', {
+                name: file.name,
+                data: base64Data,
+                size: file.size,
+                timestamp: new Date().toISOString()
+            });
+            
+            currentDbName = file.name;
+            currentDbSize = file.size;
+            
+            progressFill.style.width = '100%';
+            progressText.textContent = 'Complete!';
+            
+            updateStatus(`✅ Database Updated (${currentDbName}) | ${Math.round(file.size/1024)} KB`, 'success');
+            showUploadStatus(`Database '${currentDbName}' uploaded and saved successfully! (${Math.round(file.size/1024)} KB)`, 'success');
+            
+        } catch (storageError) {
+            // Database loaded but couldn't be saved for future sessions
+            currentDbName = file.name + " (temporary)";
+            currentDbSize = file.size;
+            
+            progressFill.style.width = '100%';
+            progressText.textContent = 'Loaded (not saved)';
+            
+            updateStatus(`✅ Database Loaded (${currentDbName}) | ${Math.round(file.size/1024)} KB`, 'success');
+            showUploadStatus('Database loaded but could not be saved for future sessions. It will reset on page refresh.', 'warning');
+        }
+        
+    } catch (error) {
+        console.error('Upload error:', error);
+        showUploadStatus('Error processing database: ' + error.message, 'error');
+    } finally {
+        // Reset UI
+        setTimeout(() => {
+            fileInput.value = '';
+            document.getElementById('uploadBtn').disabled = true;
+            document.getElementById('fileInfo').classList.add('hidden');
+            progressContainer.classList.add('hidden');
+        }, 2000);
+    }
+}
+
+// Read file as ArrayBuffer
+function readFileAsArrayBuffer(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target.result);
+        reader.onerror = () => reject(new Error('Failed to read file'));
+        reader.readAsArrayBuffer(file);
+    });
+}
+
+// Convert ArrayBuffer to Base64
+function convertToBase64(arrayBuffer) {
+    return new Promise((resolve) => {
+        const uint8Array = new Uint8Array(arrayBuffer);
+        let binary = '';
+        const chunkSize = 100000; // Process in 100KB chunks
+        
+        const processChunk = (start) => {
+            const end = Math.min(start + chunkSize, uint8Array.length);
+            const chunk = uint8Array.subarray(start, end);
+            binary += String.fromCharCode.apply(null, chunk);
+            
+            if (end < uint8Array.length) {
+                // Continue processing
+                setTimeout(() => processChunk(end), 0);
+            } else {
+                // Finished
+                resolve(btoa(binary));
+            }
+        };
+        
+        processChunk(0);
+    });
+}
+
+// Clear database
+async function clearDatabase() {
+    if (confirm("Are you sure you want to clear the current database? This will reset to the default empty database.")) {
+        try {
+            // Clear from IndexedDB
+            await saveDatabaseToIndexedDB('currentDatabase', null);
+            
+            // Load default database
+            await loadDatabaseFromBase64(defaultDbBase64);
+            currentDbName = "Empty Database";
+            currentDbSize = 0;
+            
+            // Clear UI
+            document.getElementById("acctInfo").innerHTML = "";
+            document.getElementById("billRecords").innerHTML = "";
+            document.getElementById("acctInput").value = "";
+            
+            updateStatus('✅ Database Cleared', 'success');
+            showUploadStatus('Database cleared successfully.', 'success');
+            
+        } catch (error) {
+            showUploadStatus('Error clearing database: ' + error.message, 'error');
+        }
+    }
+}
+
+// Search functionality
+document.getElementById("searchBtn").addEventListener("click", searchAccount);
+document.getElementById("acctInput").addEventListener("keypress", (e) => { 
+    if (e.key === "Enter") searchAccount(); 
+});
+
+function safeQuote(val) {
+    return val.replace(/[^0-9\-\_]/g, "");
+}
+
+function searchAccount() {
+    if (!db) { 
+        alert("Database not loaded yet."); 
+        return; 
+    }
+
+    const acctRaw = document.getElementById("acctInput").value.trim();
+    if (!acctRaw) { 
+        alert("Enter Account Number first."); 
+        return; 
+    }
+    const acctNo = safeQuote(acctRaw);
+
+    try {
+        // Account information
+        const acctQuery = `SELECT AcctNo, AcctName, Address, MeterNo, MeterSeq FROM CustomerInfo WHERE AcctNo='${acctNo}'`;
+        const acctRes = db.exec(acctQuery);
+        let acctHtml = "<h3>Account Information</h3>";
+        
+        if (acctRes.length > 0 && acctRes[0].values.length > 0) {
+            const row = acctRes[0].values[0];
+            acctHtml += `<p><b>AcctNo:</b> ${row[0]}<br>
+                         <b>AcctName:</b> ${row[1]}<br>
+                         <b>Address:</b> ${row[2]}<br>
+                         <b>MeterNo:</b> ${row[3]}<br>
+                         <b>MeterSeq:</b> ${row[4]}</p>`;
+        } else {
+            acctHtml += "<p>No account found.</p>";
+        }
+        document.getElementById("acctInfo").innerHTML = acctHtml;
+
+        // Billing records
+        const billQuery = `
+            SELECT b.BillingMonth, m.PrevReading, m.CurrReading, m.Consump, b.AmountDue, b.TypeTrans, b.ORNo
+            FROM BillingData b
+            LEFT JOIN MeterReading m ON b.ReadingID = m.ReadingID
+            WHERE b.AcctNo='${acctNo}'
+            ORDER BY b.BillingMonth DESC`;
+        const billRes = db.exec(billQuery);
+
+        let billHtml = "<h3>Billing Records</h3>";
+        if (billRes.length > 0 && billRes[0].values.length > 0) {
+            billHtml += "<table><tr><th>Billing Month</th><th>Prev</th><th>Curr</th><th>Consump</th><th>Amount Due</th><th>Type</th><th>OR No</th></tr>";
+            billRes[0].values.forEach(r => {
+                billHtml += `<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td><td>₱${parseFloat(r[4]||0).toFixed(2)}</td><td>${r[5]}</td><td>${r[6] || ""}</td></tr>`;
+            });
+            billHtml += "</table>";
+        } else {
+            billHtml += "<p>No billing records found.</p>";
+        }
+        document.getElementById("billRecords").innerHTML = billHtml;
+        
+    } catch (err) {
+        alert("Error reading data: " + err.message);
+        console.error(err);
+    }
+}
+
+// Initialize application when page loads
+window.addEventListener('load', initializeApplication);
+</script>
+</body>
+</html>
